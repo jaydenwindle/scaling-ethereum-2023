@@ -1,0 +1,10 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "expo-hardware-ecdsa": ["../src/index"],
+      "expo-hardware-ecdsa/*": ["../src/*"]
+    }
+  }
+}
