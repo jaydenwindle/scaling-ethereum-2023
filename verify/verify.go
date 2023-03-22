@@ -4,8 +4,10 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/sha256"
+    "encoding/asn1"
     "math/big"
 	"fmt"
+    "encoding/hex"
 )
 
 func main() {
@@ -33,6 +35,20 @@ func main() {
 
     msg := "hello world"
 	hash := sha256.Sum256([]byte(msg))
+
+    type ECDSASignature struct {
+		R, S *big.Int
+	}
+
+    ecdsaSig := &ECDSASignature{}
+
+    asn1.Unmarshal(signatureRaw, ecdsaSig)
+
+    fmt.Println("hash: ", hex.EncodeToString(hash[:]))
+    fmt.Println("X: ", publicKey.X)
+    fmt.Println("Y: ", publicKey.Y)
+    fmt.Println("R: ", ecdsaSig.R)
+    fmt.Println("S: ", ecdsaSig.S)
 
     valid := ecdsa.VerifyASN1(&publicKey, hash[:], signatureRaw)
 
