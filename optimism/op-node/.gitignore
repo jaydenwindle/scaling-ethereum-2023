@@ -1,1 +1,6 @@
 bin
+start.sh
+opnode_discovery_db
+opnode_peerstore_db
+jwt.txt
+opnode_p2p_priv.txt
