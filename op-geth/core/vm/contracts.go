@@ -17,6 +17,8 @@
 package vm
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
@@ -80,15 +82,16 @@ var PrecompiledContractsIstanbul = map[common.Address]PrecompiledContract{
 // PrecompiledContractsBerlin contains the default set of pre-compiled Ethereum
 // contracts used in the Berlin release.
 var PrecompiledContractsBerlin = map[common.Address]PrecompiledContract{
-	common.BytesToAddress([]byte{1}): &ecrecover{},
-	common.BytesToAddress([]byte{2}): &sha256hash{},
-	common.BytesToAddress([]byte{3}): &ripemd160hash{},
-	common.BytesToAddress([]byte{4}): &dataCopy{},
-	common.BytesToAddress([]byte{5}): &bigModExp{eip2565: true},
-	common.BytesToAddress([]byte{6}): &bn256AddIstanbul{},
-	common.BytesToAddress([]byte{7}): &bn256ScalarMulIstanbul{},
-	common.BytesToAddress([]byte{8}): &bn256PairingIstanbul{},
-	common.BytesToAddress([]byte{9}): &blake2F{},
+	common.BytesToAddress([]byte{1}):    &ecrecover{},
+	common.BytesToAddress([]byte{2}):    &sha256hash{},
+	common.BytesToAddress([]byte{3}):    &ripemd160hash{},
+	common.BytesToAddress([]byte{4}):    &dataCopy{},
+	common.BytesToAddress([]byte{5}):    &bigModExp{eip2565: true},
+	common.BytesToAddress([]byte{6}):    &bn256AddIstanbul{},
+	common.BytesToAddress([]byte{7}):    &bn256ScalarMulIstanbul{},
+	common.BytesToAddress([]byte{8}):    &bn256PairingIstanbul{},
+	common.BytesToAddress([]byte{9}):    &blake2F{},
+	common.BytesToAddress([]byte{1, 0}): &secp256r1Verify{},
 }
 
 // PrecompiledContractsBLS contains the set of pre-compiled Ethereum
@@ -623,6 +626,72 @@ func (c *blake2F) Run(input []byte) ([]byte, error) {
 		binary.LittleEndian.PutUint64(output[offset:offset+8], h[i])
 	}
 	return output, nil
+}
+
+type secp256r1Verify struct{}
+
+const (
+	secp256r1VerifyInputLength = 160
+)
+
+func (c *secp256r1Verify) RequiredGas(input []byte) uint64 {
+	// If the input is malformed, we can't calculate the gas, return 0 and let the
+	// actual call choke and fault.
+	if len(input) != secp256r1VerifyInputLength {
+		return 0
+	}
+	return uint64(binary.BigEndian.Uint32(input[0:4]))
+}
+
+var (
+	errConstInvalidInputLength = errors.New("invalid input length")
+)
+
+func (c *secp256r1Verify) Run(input []byte) ([]byte, error) {
+	// Make sure the input is valid (correct length)
+	if len(input) != secp256r1VerifyInputLength {
+		return nil, errConstInvalidInputLength
+	}
+	return verifySecp256r1Signature(input)
+}
+
+func verifySecp256r1Signature(input []byte) ([]byte, error) {
+	// Parse the input into the secp256r1 call parameters
+	var (
+		r    [32]uint8
+		s    [32]uint8
+		x    [32]uint8
+		y    [32]uint8
+		hash [32]uint8
+	)
+
+	for i := 0; i < 32; i++ {
+		r[i] = input[i]
+		s[i] = input[i+32]
+		x[i] = input[i+64]
+		y[i] = input[i+96]
+		hash[i] = input[i+128]
+	}
+
+	// Load into big.Int for x and y
+	xBig := new(big.Int).SetBytes(x[:])
+	yBig := new(big.Int).SetBytes(y[:])
+
+	publicKey := ecdsa.PublicKey{
+		elliptic.P256(),
+		xBig,
+		yBig,
+	}
+
+	// Load into big.Int for r and s
+	rBig := new(big.Int).SetBytes(r[:])
+	sBig := new(big.Int).SetBytes(s[:])
+
+	// Verify the signature
+	if ecdsa.Verify(&publicKey, hash[:], rBig, sBig) {
+		return []byte{1}, nil
+	}
+	return []byte{0}, nil
 }
 
 var (
