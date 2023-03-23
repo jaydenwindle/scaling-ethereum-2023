@@ -7,7 +7,9 @@ export default function App() {
     <View style={styles.container}>
       <Text>{ExpoHardwareEcdsa.hello()}</Text>
       <Button
-        onPress={() => ExpoHardwareEcdsa.generateKey("testing")}
+        onPress={() =>
+          ExpoHardwareEcdsa.generateKey("testing").then(console.log)
+        }
         title="Generate Key"
         color="#841584"
       />

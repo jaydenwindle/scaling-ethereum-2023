@@ -70,7 +70,7 @@ public class ExpoHardwareEcdsaModule: Module {
       return "Hello from the native side! 👋"
     }
 
-    AsyncFunction("generateKey") { (name: String) in
+    AsyncFunction("generateKey") { (name: String) -> [UInt8]? in
         let algorithm: SecKeyAlgorithm = .ecdsaSignatureMessageX962SHA256
         var error: Unmanaged<CFError>?
 
@@ -93,8 +93,12 @@ public class ExpoHardwareEcdsaModule: Module {
                 
                 print(publicKeyData.bytes);
                 print(signature.bytes);
+                
+                return publicKeyData.bytes
             }
         }
+        
+        return nil
     }
 
     // Defines a JavaScript function that always returns a Promise and whose native code
