@@ -1,13 +1,7 @@
-import { EventEmitter } from 'expo-modules-core';
+export async function getPublicKey(keyName: string) {
+  return [];
+}
 
-const emitter = new EventEmitter({} as any);
-
-export default {
-  PI: Math.PI,
-  async setValueAsync(value: string): Promise<void> {
-    emitter.emit('onChange', { value });
-  },
-  hello() {
-    return 'Hello world! 👋';
-  },
-};
+export async function sign(keyName: string, data: number[]) {
+  return [];
+}

@@ -28,8 +28,15 @@
   "author": "Jayden Windle <jaydenwindle@gmail.com> (https://github.com/jaydenwindle)",
   "license": "MIT",
   "homepage": "https://github.com/jaydenwindle/expo-hardware-ecdsa#readme",
-  "dependencies": {},
+  "dependencies": {
+    "@ethersproject/shims": "^5.7.0",
+    "asn1-ts": "^7.1.1",
+    "buffer": "^6.0.3",
+    "fast-text-encoding": "^1.0.6",
+    "viem": "^0.1.21"
+  },
   "devDependencies": {
+    "@types/fast-text-encoding": "^1.0.1",
     "@types/react": "^18.0.25",
     "@types/react-native": "^0.70.6",
     "expo-module-scripts": "^3.0.4",
