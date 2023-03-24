@@ -1,37 +1,31 @@
-import { StyleSheet, Text, View, Button } from "react-native";
+import { StatusBar } from "expo-status-bar";
+import { useColorScheme } from "react-native";
+import { Paragraph, Spacer, TamaguiProvider, Theme, YStack } from "tamagui";
+import { useFonts } from "expo-font";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import config from "./tamagui.config";
 
-import "fast-text-encoding";
-import { keccak256, toHex, toBytes } from "viem";
-
-import * as ExpoHardwareEcdsa from "expo-hardware-ecdsa";
+import WalletList from "./components/WalletList";
 
 export default function App() {
-  return (
-    <View style={styles.container}>
-      <Button
-        onPress={() => {
-          const data =
-            "0x791cb696b21a4c9d467bcc78ce053cd033b6d74fe268f179415d9731f370a653";
-          console.log("data", data);
+  const colorScheme = useColorScheme();
 
-          ExpoHardwareEcdsa.getPublicKey("testing").then(console.log);
-          ExpoHardwareEcdsa.sign(
-            "testing",
-            keccak256(toHex("hello world"))
-          ).then(console.log);
-        }}
-        title="Generate Key"
-        color="#841584"
-      />
-    </View>
+  const [loaded] = useFonts({
+    Inter: require("@tamagui/font-inter/otf/Inter-Medium.otf"),
+    InterBold: require("@tamagui/font-inter/otf/Inter-Bold.otf"),
+  });
+
+  if (!loaded) {
+    return null;
+  }
+
+  return (
+    <TamaguiProvider config={config}>
+      <Theme name={colorScheme === "dark" ? "dark" : "light"}>
+        <SafeAreaProvider>
+          <WalletList />
+        </SafeAreaProvider>
+      </Theme>
+    </TamaguiProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});
