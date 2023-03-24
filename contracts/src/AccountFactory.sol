@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
+import "forge-std/console.sol";
+
 import "openzeppelin-contracts/proxy/Clones.sol";
 import "./Account.sol";
 import "./P256Verifier.sol";
 
 contract AccountFactory {
-    address implementation;
-    address entryPoint;
-    address verifier;
+    address public implementation;
+    address public entryPoint;
+    address public verifier;
 
     constructor(address _entryPoint) {
         entryPoint = _entryPoint;
@@ -29,6 +31,8 @@ contract AccountFactory {
             keccak256(publicKey)
         );
 
+        console.log("account pre", account);
+
         if (account.code.length == 0) {
             account = Clones.cloneDeterministic(
                 implementation,
@@ -38,6 +42,16 @@ contract AccountFactory {
             Account(account).initialize(publicKey, entryPoint, verifier);
         }
 
+        console.log("account", account);
+
         return account;
+    }
+
+    function predict(bytes calldata publicKey) external view returns (address) {
+        return
+            Clones.predictDeterministicAddress(
+                implementation,
+                keccak256(publicKey)
+            );
     }
 }

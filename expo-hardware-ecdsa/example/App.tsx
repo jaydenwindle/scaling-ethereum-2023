@@ -10,7 +10,8 @@ export default function App() {
     <View style={styles.container}>
       <Button
         onPress={() => {
-          const data = keccak256(toHex("hello world"));
+          const data =
+            "0x791cb696b21a4c9d467bcc78ce053cd033b6d74fe268f179415d9731f370a653";
           console.log("data", data);
 
           ExpoHardwareEcdsa.getPublicKey("testing").then(console.log);

@@ -33,6 +33,31 @@ contract Account is Initializable, BaseAccount {
         return IEntryPoint(_entryPoint);
     }
 
+    function execute(
+        address target,
+        uint256 value,
+        bytes calldata data
+    ) external {
+        require(
+            msg.sender == address(entryPoint()),
+            "account: invalid EntryPoint"
+        );
+        _call(target, value, data);
+    }
+
+    function _call(
+        address target,
+        uint256 value,
+        bytes memory data
+    ) internal {
+        (bool success, bytes memory result) = target.call{value: value}(data);
+        if (!success) {
+            assembly {
+                revert(add(result, 32), mload(result))
+            }
+        }
+    }
+
     function _validateSignature(
         UserOperation calldata userOp,
         bytes32 userOpHash,
