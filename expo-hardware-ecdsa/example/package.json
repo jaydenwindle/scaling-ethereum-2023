@@ -8,6 +8,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@account-abstraction/utils": "^0.5.0",
     "@react-native-async-storage/async-storage": "1.17.11",
     "@tamagui/animations-react-native": "^1.9.0",
     "@tamagui/babel-plugin": "^1.9.0",

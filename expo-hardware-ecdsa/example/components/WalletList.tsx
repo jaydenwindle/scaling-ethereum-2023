@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { useAsyncStorage } from "@react-native-async-storage/async-storage";
+import { getUserOpHash } from "@account-abstraction/utils";
 import {
   keccak256,
   toHex,
@@ -23,6 +24,8 @@ import {
   parseEther,
 } from "viem";
 import { foundry } from "viem/chains";
+
+import EntryPoint from "../EntryPoint.json";
 
 import { useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -48,85 +51,6 @@ import ExpoHardwareEcdsaModule from "expo-hardware-ecdsa/ExpoHardwareEcdsaModule
 
 const FACTORY_CONTRACT = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
 const ENTRYPOINT_CONTRACT = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
-
-const ENTRYPOINT_ABI = [
-  {
-    inputs: [
-      {
-        components: [
-          {
-            internalType: "address",
-            name: "sender",
-            type: "address",
-          },
-          {
-            internalType: "uint256",
-            name: "nonce",
-            type: "uint256",
-          },
-          {
-            internalType: "bytes",
-            name: "initCode",
-            type: "bytes",
-          },
-          {
-            internalType: "bytes",
-            name: "callData",
-            type: "bytes",
-          },
-          {
-            internalType: "uint256",
-            name: "callGasLimit",
-            type: "uint256",
-          },
-          {
-            internalType: "uint256",
-            name: "verificationGasLimit",
-            type: "uint256",
-          },
-          {
-            internalType: "uint256",
-            name: "preVerificationGas",
-            type: "uint256",
-          },
-          {
-            internalType: "uint256",
-            name: "maxFeePerGas",
-            type: "uint256",
-          },
-          {
-            internalType: "uint256",
-            name: "maxPriorityFeePerGas",
-            type: "uint256",
-          },
-          {
-            internalType: "bytes",
-            name: "paymasterAndData",
-            type: "bytes",
-          },
-          {
-            internalType: "bytes",
-            name: "signature",
-            type: "bytes",
-          },
-        ],
-        internalType: "struct UserOperation",
-        name: "userOp",
-        type: "tuple",
-      },
-    ],
-    name: "getUserOpHash",
-    outputs: [
-      {
-        internalType: "bytes32",
-        name: "",
-        type: "bytes32",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-];
 
 const client = createPublicClient({
   chain: foundry,
@@ -258,9 +182,17 @@ function AccountSheet({
           });
 
           if (bytecode === undefined) {
+            const factoryAbi = parseAbi([
+              "function create(bytes calldata publicKey) external returns (address)",
+            ]);
+            const initCodeCalldata = encodeFunctionData({
+              abi: factoryAbi,
+              functionName: "create",
+              args: [publicKey as `0x${string}`],
+            });
             initCode = encodePacked(
               ["address", "bytes"],
-              [FACTORY_CONTRACT, publicKey as `0x${string}`]
+              [FACTORY_CONTRACT, initCodeCalldata]
             );
           } else {
             const accountNonce = await client.readContract({
@@ -296,21 +228,36 @@ function AccountSheet({
             maxFeePerGas,
             maxPriorityFeePerGas,
             paymasterAndData: "0x",
-            signature: "",
+            signature: "0x",
           };
 
-          const userOpHash = (await client.readContract({
+          const userOpHashContract = (await client.readContract({
             address: ENTRYPOINT_CONTRACT as `0x${string}`,
-            abi: ENTRYPOINT_ABI,
+            abi: EntryPoint.abi,
             functionName: "getUserOpHash",
             args: [userOp],
           })) as `0x${string}`;
+
+          const userOpHash = getUserOpHash(userOp, ENTRYPOINT_CONTRACT, 31337);
+
+          console.log(userOpHash, userOpHashContract);
 
           const signature = await ExpoHardwareEcdsa.sign(keyName, userOpHash);
 
           console.log(signature.length);
 
           userOp.signature = signature;
+
+          try {
+            (await client.readContract({
+              address: ENTRYPOINT_CONTRACT as `0x${string}`,
+              abi: EntryPoint.abi,
+              functionName: "simulateHandleOp",
+              args: [userOp],
+            })) as `0x${string}`;
+          } catch (error) {
+            console.log("simulated result: ", error);
+          }
 
           const rpcCall = {
             jsonrpc: "2.0",
