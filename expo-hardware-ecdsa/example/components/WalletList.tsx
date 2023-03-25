@@ -23,7 +23,7 @@ import {
   encodeFunctionData,
   parseEther,
 } from "viem";
-import { foundry } from "viem/chains";
+import { foundry, goerli } from "viem/chains";
 
 import EntryPoint from "../EntryPoint.json";
 
@@ -49,12 +49,14 @@ import {
 } from "tamagui";
 import ExpoHardwareEcdsaModule from "expo-hardware-ecdsa/ExpoHardwareEcdsaModule";
 
-const FACTORY_CONTRACT = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
-const ENTRYPOINT_CONTRACT = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+const FACTORY_CONTRACT = "0xcea50e40Db753b8C12fa94256e878B7997a91c1F";
+const ENTRYPOINT_CONTRACT = "0x0576a174D229E3cFA37253523E645A78A0C91B57";
 
 const client = createPublicClient({
-  chain: foundry,
-  transport: http(),
+  chain: goerli,
+  transport: http(
+    "https://eth-goerli.g.alchemy.com/v2/TJqDABiMUtSB8UgZosMt8u4CwN7Dca3Z"
+  ),
 });
 
 const useWalletData = (keyName: string) => {
@@ -204,7 +206,7 @@ function AccountSheet({
           }
 
           const gasPrice = await client.getGasPrice();
-          const maxPriorityFeePerGas = Number(parseGwei("10"));
+          const maxPriorityFeePerGas = Number(parseGwei("100"));
           const maxFeePerGas = Number(gasPrice) + maxPriorityFeePerGas;
 
           const callData = encodeFunctionData({
@@ -222,9 +224,9 @@ function AccountSheet({
             nonce,
             initCode,
             callData,
-            callGasLimit: 1000000,
-            verificationGasLimit: 1000000,
-            preVerificationGas: 1000000,
+            callGasLimit: 1500000,
+            verificationGasLimit: 1500000,
+            preVerificationGas: 1500000,
             maxFeePerGas,
             maxPriorityFeePerGas,
             paymasterAndData: "0x",
@@ -238,9 +240,9 @@ function AccountSheet({
             args: [userOp],
           })) as `0x${string}`;
 
-          const userOpHash = getUserOpHash(userOp, ENTRYPOINT_CONTRACT, 31337);
+          const userOpHash = getUserOpHash(userOp, ENTRYPOINT_CONTRACT, 5);
 
-          console.log(userOpHash, userOpHashContract);
+          console.log("here", userOpHash, userOpHashContract);
 
           const signature = await ExpoHardwareEcdsa.sign(keyName, userOpHash);
 
@@ -268,14 +270,17 @@ function AccountSheet({
 
           const stringifiedRpcCall = JSON.stringify(rpcCall);
 
-          const response = await fetch("http://localhost:4337", {
-            method: "POST",
-            headers: {
-              Accept: "application/json",
-              "Content-Type": "application/json",
-            },
-            body: stringifiedRpcCall,
-          });
+          const response = await fetch(
+            "https://api.blocknative.com/v1/goerli/bundler",
+            {
+              method: "POST",
+              headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+              },
+              body: stringifiedRpcCall,
+            }
+          );
 
           const result = await response.json();
 

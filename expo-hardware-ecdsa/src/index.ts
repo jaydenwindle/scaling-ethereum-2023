@@ -6,7 +6,7 @@ global.Buffer = global.Buffer || require("buffer").Buffer;
 
 import ExpoHardwareEcdsaModule from "./ExpoHardwareEcdsaModule";
 
-import { toHex, toBytes, concat } from "viem";
+import { toHex, toBytes, concat, encodeAbiParameters } from "viem";
 import { DERElement } from "asn1-ts";
 
 export async function getPublicKey(keyName: string) {
@@ -28,5 +28,13 @@ export async function sign(keyName: string, data: string) {
   const r = BigInt(element.components[0].toString());
   const s = BigInt(element.components[1].toString());
 
-  return concat([toHex(r), toHex(s)]);
+  const encodedData = encodeAbiParameters(
+    [
+      { name: "r", type: "uint256" },
+      { name: "s", type: "uint256" },
+    ],
+    [r, s]
+  );
+
+  return encodedData;
 }
