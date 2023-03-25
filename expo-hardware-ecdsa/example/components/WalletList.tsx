@@ -5,14 +5,27 @@ import {
   StyleSheet,
   Text,
   View,
+  Modal,
   TouchableOpacity,
 } from "react-native";
 import { useAsyncStorage } from "@react-native-async-storage/async-storage";
-import { keccak256, toHex, toBytes } from "viem";
+import {
+  keccak256,
+  toHex,
+  toBytes,
+  createPublicClient,
+  http,
+  formatEther,
+  parseAbi,
+} from "viem";
+import { localhost } from "viem/chains";
+
 import { useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { List, PlusCircle } from "@tamagui/lucide-icons";
+import { PlusCircle, Send, X } from "@tamagui/lucide-icons";
 import { generateSlug } from "random-word-slugs";
+import * as Burnt from "burnt";
+import * as Clipboard from "expo-clipboard";
 
 import * as ExpoHardwareEcdsa from "expo-hardware-ecdsa";
 
@@ -28,6 +41,11 @@ import {
   Label,
 } from "tamagui";
 
+const client = createPublicClient({
+  chain: localhost,
+  transport: http(),
+});
+
 function AccountListItem({
   keyName,
   onPress,
@@ -37,16 +55,46 @@ function AccountListItem({
 }) {
   const [publicKey, setPublicKey] = useState("");
   const [address, setAddress] = useState("");
+  const [balance, setBalance] = useState("");
 
   useEffect(() => {
-    ExpoHardwareEcdsa.getPublicKey(keyName).then((pk) => {
+    async function getWalletData() {
+      const pk = await ExpoHardwareEcdsa.getPublicKey(keyName);
       setPublicKey(pk);
-      setAddress(pk.slice(0, 44));
-    });
+
+      const abi = parseAbi([
+        "function predict(bytes calldata publicKey) external view returns (address)",
+      ]);
+
+      const remoteAddress = await client.readContract({
+        address: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+        abi: abi,
+        functionName: "predict",
+        args: [pk as `0x${string}`],
+      });
+
+      setAddress(remoteAddress);
+
+      const remoteBalance = await client.getBalance({
+        address: remoteAddress,
+      });
+
+      setBalance(formatEther(remoteBalance).toString());
+    }
+
+    getWalletData();
   }, []);
 
   return (
-    <TouchableOpacity onPress={onPress}>
+    <TouchableOpacity
+      onPress={onPress}
+      onLongPress={async () => {
+        Burnt.toast({
+          title: "Address copied",
+        });
+        await Clipboard.setStringAsync(address);
+      }}
+    >
       <YStack px="$4" py="$4" borderBottomWidth={1} borderBottomColor="$gray2">
         <XStack flex={1} flexDirection="row">
           <YStack flex={1} pr="$6">
@@ -54,14 +102,20 @@ function AccountListItem({
               {address.slice(0, 6)}...{address.slice(-4)}
             </Paragraph>
           </YStack>
-          <Paragraph fontSize="$7">0.1 ETH</Paragraph>
+          <Paragraph fontSize="$7">{balance} ETH</Paragraph>
         </XStack>
       </YStack>
     </TouchableOpacity>
   );
 }
 
-function AccountSheet({ keyName }: { keyName: string }) {
+function AccountSheet({
+  keyName,
+  onPress,
+}: {
+  keyName: string;
+  onPress: () => void;
+}) {
   const [publicKey, setPublicKey] = useState("");
   const [address, setAddress] = useState("");
 
@@ -75,18 +129,26 @@ function AccountSheet({ keyName }: { keyName: string }) {
   }, [keyName]);
 
   return (
-    <YStack p="$4" flex={1}>
-      <Paragraph fontSize="$7" numberOfLines={1}>
-        {address}
-      </Paragraph>
-      <YStack flex={1}>
-        <Label htmlFor="recipient">Recipient</Label>
+    <YStack p="$4">
+      <XStack jc="space-between">
+        <Paragraph fontSize="$7" numberOfLines={1} mb="$4">
+          {address.slice(0, 6)}...{address.slice(-4)}
+        </Paragraph>
+        <TouchableOpacity onPress={onPress}>
+          <X />
+        </TouchableOpacity>
+      </XStack>
+      <YStack>
+        <Label htmlFor="recipient">Recipient Address</Label>
         <Input id="recipient" placeholder="0xabc..." />
       </YStack>
-      <YStack flex={1}>
+      <YStack mb="$4">
         <Label htmlFor="value">Value (ETH)</Label>
         <Input id="value" placeholder="0.1" />
       </YStack>
+      <Button icon={Send} size="$5" theme="blue">
+        Transfer
+      </Button>
     </YStack>
   );
 }
@@ -151,22 +213,19 @@ export default function App() {
           </Button>
         </YStack>
       </YStack>
-      <Sheet
-        onOpenChange={(open: boolean) => {
-          if (!open) {
-            setSelectedAccount(undefined);
-          }
+      <Modal
+        animationType="slide"
+        presentationStyle="pageSheet"
+        visible={selectedAccount !== undefined}
+        onRequestClose={() => {
+          setSelectedAccount(undefined);
         }}
-        snapPoints={[40]}
-        modal
-        dismissOnSnapToBottom
-        open={selectedAccount !== undefined}
       >
-        <Sheet.Overlay />
-        <Sheet.Frame>
-          <AccountSheet keyName={selectedAccount || ""} />
-        </Sheet.Frame>
-      </Sheet>
+        <AccountSheet
+          keyName={selectedAccount || ""}
+          onPress={() => setSelectedAccount(undefined)}
+        />
+      </Modal>
     </SafeAreaView>
   );
 }
