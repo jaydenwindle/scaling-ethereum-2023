@@ -19,7 +19,7 @@ contract AccountFactory {
 
         if (block.chainid == 42069) {
             // use precompile if available
-            verifier = address(0x0100);
+            verifier = address(0x100);
         } else {
             verifier = address(new P256Verifier());
         }
@@ -31,8 +31,6 @@ contract AccountFactory {
             keccak256(publicKey)
         );
 
-        console.log("account pre", account);
-
         if (account.code.length == 0) {
             account = Clones.cloneDeterministic(
                 implementation,
@@ -41,8 +39,6 @@ contract AccountFactory {
 
             Account(account).initialize(publicKey, entryPoint, verifier);
         }
-
-        console.log("account", account);
 
         return account;
     }

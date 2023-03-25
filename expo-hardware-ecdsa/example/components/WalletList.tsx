@@ -22,10 +22,16 @@ import {
   parseGwei,
   encodeFunctionData,
   parseEther,
+  getAccount,
+  concat,
+  getAddress,
 } from "viem";
-import { foundry, goerli } from "viem/chains";
+import { foundry, goerli, hardhat, localhost } from "viem/chains";
+import axios from "axios";
 
 import EntryPoint from "../EntryPoint.json";
+import Account from "../Account.json";
+import AccountFactory from "../AccountFactory.json";
 
 import { useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -49,14 +55,39 @@ import {
 } from "tamagui";
 import ExpoHardwareEcdsaModule from "expo-hardware-ecdsa/ExpoHardwareEcdsaModule";
 
-const FACTORY_CONTRACT = "0xcea50e40Db753b8C12fa94256e878B7997a91c1F";
-const ENTRYPOINT_CONTRACT = "0x0576a174D229E3cFA37253523E645A78A0C91B57";
+// goreli
+// const FACTORY_CONTRACT = "0xcea50e40Db753b8C12fa94256e878B7997a91c1F";
+// const ENTRYPOINT_CONTRACT = "0x0576a174D229E3cFA37253523E645A78A0C91B57";
+// const VERIFIER_CONTRACT = "0x36f58b5164b151Be83723210342fF62c7Ea6BC35";
+//
+// const client = createPublicClient({
+//   chain: goerli,
+//   transport: http(
+//     "https://eth-goerli.g.alchemy.com/v2/TJqDABiMUtSB8UgZosMt8u4CwN7Dca3Z"
+//   ),
+// });
+
+// hardhat
+// const FACTORY_CONTRACT = "0x4299b09BFBeAdD466c66a6188eC7D13E13Fa5AD2";
+// const ENTRYPOINT_CONTRACT = "0x81b630c4e08BCD6BF96e7E1d1a5E957E5FA33AEC";
+// const VERIFIER_CONTRACT = "0x2eeEDF7e075A469707ef143B2085779e5edACc53";
+//
+// const client = createPublicClient({
+//   chain: hardhat,
+//   transport: http("http://localhost:8545"),
+// });
+
+// OP R1
+const FACTORY_CONTRACT = "0xcab8817c0B0769A6de34679fCCd34Dd648Dd7311";
+const ENTRYPOINT_CONTRACT = "0x4299b09BFBeAdD466c66a6188eC7D13E13Fa5AD2";
+const VERIFIER_CONTRACT = "0x0000000000000000000000000000000000000100";
 
 const client = createPublicClient({
-  chain: goerli,
-  transport: http(
-    "https://eth-goerli.g.alchemy.com/v2/TJqDABiMUtSB8UgZosMt8u4CwN7Dca3Z"
-  ),
+  chain: {
+    ...localhost,
+    id: 42069,
+  },
+  transport: http("http://137.220.41.117:8545"),
 });
 
 const useWalletData = (keyName: string) => {
@@ -174,24 +205,30 @@ function AccountSheet({
         onPress={async () => {
           let initCode = "";
           let nonce = 0;
-          const accountAbi = parseAbi([
-            "function nonce() public view returns (uint256)",
-            "function execute(address target, uint256 value, bytes calldata data) external",
-          ]);
-
           const bytecode = await client.getBytecode({
             address: address as `0x${string}`,
           });
+          const initCodeCalldata = encodeFunctionData({
+            abi: AccountFactory.abi,
+            functionName: "create",
+            args: [publicKey as `0x${string}`],
+          });
+
+          const account = getAccount(
+            "0x1e9830Cd7c1b945c7640a1d7383616Cc2A194527"
+          );
+
+          const creationGasCost = await client.estimateContractGas({
+            address: FACTORY_CONTRACT,
+            abi: AccountFactory.abi,
+            functionName: "create",
+            args: [publicKey as `0x${string}`],
+            account,
+          });
+
+          console.log(creationGasCost);
 
           if (bytecode === undefined) {
-            const factoryAbi = parseAbi([
-              "function create(bytes calldata publicKey) external returns (address)",
-            ]);
-            const initCodeCalldata = encodeFunctionData({
-              abi: factoryAbi,
-              functionName: "create",
-              args: [publicKey as `0x${string}`],
-            });
             initCode = encodePacked(
               ["address", "bytes"],
               [FACTORY_CONTRACT, initCodeCalldata]
@@ -199,18 +236,18 @@ function AccountSheet({
           } else {
             const accountNonce = await client.readContract({
               address: address as `0x${string}`,
-              abi: accountAbi,
+              abi: Account.abi,
               functionName: "nonce",
             });
             nonce = Number(accountNonce);
           }
 
           const gasPrice = await client.getGasPrice();
-          const maxPriorityFeePerGas = Number(parseGwei("100"));
+          const maxPriorityFeePerGas = Number(parseGwei("1"));
           const maxFeePerGas = Number(gasPrice) + maxPriorityFeePerGas;
 
           const callData = encodeFunctionData({
-            abi: accountAbi,
+            abi: Account.abi,
             functionName: "execute",
             args: [
               recipient as `0x${string}`,
@@ -224,9 +261,9 @@ function AccountSheet({
             nonce,
             initCode,
             callData,
-            callGasLimit: 1500000,
-            verificationGasLimit: 1500000,
-            preVerificationGas: 1500000,
+            callGasLimit: 50000,
+            verificationGasLimit: 300000,
+            preVerificationGas: 50000,
             maxFeePerGas,
             maxPriorityFeePerGas,
             paymasterAndData: "0x",
@@ -250,11 +287,25 @@ function AccountSheet({
 
           userOp.signature = signature;
 
+          console.log(signature, publicKey, userOpHash);
+
+          const data = await client.call({
+            account,
+            data: concat([
+              signature,
+              publicKey as `0x${string}`,
+              userOpHash as `0x${string}`,
+            ]),
+            to: getAddress("0x0000000000000000000000000000000000000100"),
+          });
+
+          console.log(data);
+
           try {
             (await client.readContract({
               address: ENTRYPOINT_CONTRACT as `0x${string}`,
               abi: EntryPoint.abi,
-              functionName: "simulateHandleOp",
+              functionName: "simulateValidation",
               args: [userOp],
             })) as `0x${string}`;
           } catch (error) {
@@ -270,20 +321,15 @@ function AccountSheet({
 
           const stringifiedRpcCall = JSON.stringify(rpcCall);
 
-          const response = await fetch(
-            "https://api.blocknative.com/v1/goerli/bundler",
-            {
-              method: "POST",
-              headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-              },
-              body: stringifiedRpcCall,
-            }
-          );
-
+          const response = await fetch("http://localhost:4337", {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+            body: stringifiedRpcCall,
+          });
           const result = await response.json();
-
           console.log(result);
         }}
       >
@@ -368,3 +414,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 });
+
+// ["0x098900082A85051dc347fe6E7c2aAC2F2b3Ce734", 0, "0xcea50e40db753b8c12fa94256e878b7997a91c1fcf5ba53f0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000004098ec4592bc7024e6c28c20fb10c11752e2d38f1063d31b400db98681e467de196c26e48e6570ad7d3f690760f2df6778f5ab42f446fee4d6822765c1a9723413", "0xb61d27f60000000000000000000000005a0d706ce7a9a0df64886e143e6993700ac370a400000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000", 50000, 3000000, 50000, 95877371145, 1, "", "0x6d62c635fc6c2ffa67280f45d1be9dd9e90e4588786cd6363e11b7cb168e541f126a66f65901a05416b6cc4ba04e1bd5d97677775f748aa3a57232399bb53583"]
+// {"sender":"0x098900082A85051dc347fe6E7c2aAC2F2b3Ce734","nonce":0,"initCode":"0xcea50e40db753b8c12fa94256e878b7997a91c1fcf5ba53f0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000004098ec4592bc7024e6c28c20fb10c11752e2d38f1063d31b400db98681e467de196c26e48e6570ad7d3f690760f2df6778f5ab42f446fee4d6822765c1a9723413","callData":"0xb61d27f60000000000000000000000005a0d706ce7a9a0df64886e143e6993700ac370a400000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000","callGasLimit":50000,"verificationGasLimit":3000000,"preVerificationGas":50000,"maxFeePerGas":95877371145,"maxPriorityFeePerGas":1,"paymasterAndData":"0x","signature":"0x6d62c635fc6c2ffa67280f45d1be9dd9e90e4588786cd6363e11b7cb168e541f126a66f65901a05416b6cc4ba04e1bd5d97677775f748aa3a57232399bb53583"}

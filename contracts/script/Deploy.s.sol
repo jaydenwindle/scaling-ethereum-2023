@@ -13,9 +13,8 @@ contract DeployScript is Script {
         uint256 deployerPrivateKey = vm.envUint("GOERLI_PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
-        AccountFactory factory = new AccountFactory(
-            0x0576a174D229E3cFA37253523E645A78A0C91B57
-        );
+        EntryPoint entryPoint = new EntryPoint();
+        AccountFactory factory = new AccountFactory(address(entryPoint));
 
         vm.stopBroadcast();
     }

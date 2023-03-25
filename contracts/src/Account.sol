@@ -60,10 +60,9 @@ contract Account is Initializable, BaseAccount {
 
     function _validateSignature(
         UserOperation calldata userOp,
-        bytes32 userOpHash,
-        address aggregator
-    ) internal override returns (uint256 deadline) {
-        (bool success, bytes memory data) = verifier.call(
+        bytes32 userOpHash
+    ) internal override returns (uint256 validationData) {
+        (bool success, bytes memory data) = verifier.staticcall(
             abi.encodePacked(userOp.signature, publicKey, userOpHash)
         );
 

@@ -34,9 +34,9 @@ contract AccountTest is Test {
         address beneficiary = vm.addr(2);
 
         bytes
-            memory publicKey = hex"3eda21bf36adefdd7ef9c1b8deaa3b50b512143738358186b26f9c3111c5bb516f66668f1c2a3d40e1d5c869a022081ae91f7680668ee071100b122159748238";
+            memory publicKey = hex"98ec4592bc7024e6c28c20fb10c11752e2d38f1063d31b400db98681e467de196c26e48e6570ad7d3f690760f2df6778f5ab42f446fee4d6822765c1a9723413";
         bytes
-            memory signature = hex"8d1dae699cf33a9ec5cffa0affc4b528f8385e733e1778219dd3dfc8e9470b07d19c969d46b72970c158181e459196cf4323addcb11dc450bb2beccccfc16ef3";
+            memory signature = hex"af569fc8f91f6456160ddf6ef115470af791bf1d0665fea93c7cd371bc79c42fd140836cfa88560491462c7c451359a398dcfeae8e66ac4fdcbf04df2824ec0c";
 
         bytes memory initCode = abi.encodePacked(
             address(factory),
@@ -51,10 +51,6 @@ contract AccountTest is Test {
             0.1 ether,
             ""
         );
-
-        console.log(sender);
-        console.logBytes(initCode);
-        console.logBytes(callData);
 
         UserOperation memory op = UserOperation({
             sender: sender,
@@ -82,7 +78,5 @@ contract AccountTest is Test {
         entryPoint.handleOps(ops, payable(beneficiary));
 
         assertEq(recipient.balance, 0.1 ether);
-
-        console.log("sender balance:", sender.balance);
     }
 }

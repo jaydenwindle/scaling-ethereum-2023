@@ -2,9 +2,10 @@
 	path = contracts/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
 	branch = v1.5.2
-[submodule "contracts/lib/account-abstraction"]
-	path = contracts/lib/account-abstraction
-	url = https://github.com/eth-infinitism/account-abstraction
 [submodule "contracts/lib/openzeppelin-contracts"]
 	path = contracts/lib/openzeppelin-contracts
 	url = https://github.com/openzeppelin/openzeppelin-contracts
+[submodule "contracts/lib/account-abstraction"]
+	path = contracts/lib/account-abstraction
+	url = https://github.com/eth-infinitism/account-abstraction
+	tag = v0.5
