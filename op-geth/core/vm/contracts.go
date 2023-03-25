@@ -635,12 +635,12 @@ const (
 )
 
 func (c *secp256r1Verify) RequiredGas(input []byte) uint64 {
-	// If the input is malformed, we can't calculate the gas, return 0 and let the
-	// actual call choke and fault.
-	if len(input) != secp256r1VerifyInputLength {
-		return 0
-	}
-	return uint64(binary.BigEndian.Uint32(input[0:4]))
+	// // If the input is malformed, we can't calculate the gas, return 0 and let the
+	// // actual call choke and fault.
+	// if len(input) != secp256r1VerifyInputLength {
+	// 	return 0
+	// }
+	return 3000
 }
 
 var (
