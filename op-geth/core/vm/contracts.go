@@ -689,9 +689,9 @@ func verifySecp256r1Signature(input []byte) ([]byte, error) {
 
 	// Verify the signature
 	if ecdsa.Verify(&publicKey, hash[:], rBig, sBig) {
-		return []byte{1}, nil
+		return common.LeftPadBytes([]byte{1}, 32), nil
 	}
-	return []byte{0}, nil
+	return common.LeftPadBytes([]byte{0}, 32), nil
 }
 
 var (
