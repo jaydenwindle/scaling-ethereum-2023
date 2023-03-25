@@ -17,8 +17,12 @@ import {
   http,
   formatEther,
   parseAbi,
+  encodePacked,
+  parseGwei,
+  encodeFunctionData,
+  parseEther,
 } from "viem";
-import { localhost } from "viem/chains";
+import { foundry } from "viem/chains";
 
 import { useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -40,19 +44,96 @@ import {
   Input,
   Label,
 } from "tamagui";
+import ExpoHardwareEcdsaModule from "expo-hardware-ecdsa/ExpoHardwareEcdsaModule";
+
+const FACTORY_CONTRACT = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
+const ENTRYPOINT_CONTRACT = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+
+const ENTRYPOINT_ABI = [
+  {
+    inputs: [
+      {
+        components: [
+          {
+            internalType: "address",
+            name: "sender",
+            type: "address",
+          },
+          {
+            internalType: "uint256",
+            name: "nonce",
+            type: "uint256",
+          },
+          {
+            internalType: "bytes",
+            name: "initCode",
+            type: "bytes",
+          },
+          {
+            internalType: "bytes",
+            name: "callData",
+            type: "bytes",
+          },
+          {
+            internalType: "uint256",
+            name: "callGasLimit",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "verificationGasLimit",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "preVerificationGas",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "maxFeePerGas",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "maxPriorityFeePerGas",
+            type: "uint256",
+          },
+          {
+            internalType: "bytes",
+            name: "paymasterAndData",
+            type: "bytes",
+          },
+          {
+            internalType: "bytes",
+            name: "signature",
+            type: "bytes",
+          },
+        ],
+        internalType: "struct UserOperation",
+        name: "userOp",
+        type: "tuple",
+      },
+    ],
+    name: "getUserOpHash",
+    outputs: [
+      {
+        internalType: "bytes32",
+        name: "",
+        type: "bytes32",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+];
 
 const client = createPublicClient({
-  chain: localhost,
+  chain: foundry,
   transport: http(),
 });
 
-function AccountListItem({
-  keyName,
-  onPress,
-}: {
-  keyName: string;
-  onPress: () => void;
-}) {
+const useWalletData = (keyName: string) => {
   const [publicKey, setPublicKey] = useState("");
   const [address, setAddress] = useState("");
   const [balance, setBalance] = useState("");
@@ -67,7 +148,7 @@ function AccountListItem({
       ]);
 
       const remoteAddress = await client.readContract({
-        address: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+        address: FACTORY_CONTRACT,
         abi: abi,
         functionName: "predict",
         args: [pk as `0x${string}`],
@@ -83,7 +164,19 @@ function AccountListItem({
     }
 
     getWalletData();
-  }, []);
+  }, [keyName]);
+
+  return { publicKey, address, balance };
+};
+
+function AccountListItem({
+  keyName,
+  onPress,
+}: {
+  keyName: string;
+  onPress: () => void;
+}) {
+  const { publicKey, address, balance } = useWalletData(keyName);
 
   return (
     <TouchableOpacity
@@ -116,17 +209,9 @@ function AccountSheet({
   keyName: string;
   onPress: () => void;
 }) {
-  const [publicKey, setPublicKey] = useState("");
-  const [address, setAddress] = useState("");
-
-  useEffect(() => {
-    if (keyName) {
-      ExpoHardwareEcdsa.getPublicKey(keyName).then((pk) => {
-        setPublicKey(pk);
-        setAddress(pk.slice(0, 44));
-      });
-    }
-  }, [keyName]);
+  const { publicKey, address, balance } = useWalletData(keyName);
+  const [recipient, setRecipient] = useState("");
+  const [value, setValue] = useState("");
 
   return (
     <YStack p="$4">
@@ -140,13 +225,116 @@ function AccountSheet({
       </XStack>
       <YStack>
         <Label htmlFor="recipient">Recipient Address</Label>
-        <Input id="recipient" placeholder="0xabc..." />
+        <Input
+          id="recipient"
+          placeholder="0xabc..."
+          value={recipient}
+          onChangeText={setRecipient}
+        />
       </YStack>
       <YStack mb="$4">
         <Label htmlFor="value">Value (ETH)</Label>
-        <Input id="value" placeholder="0.1" />
+        <Input
+          id="value"
+          placeholder="0.1"
+          value={value}
+          onChangeText={setValue}
+        />
       </YStack>
-      <Button icon={Send} size="$5" theme="blue">
+      <Button
+        icon={Send}
+        size="$5"
+        theme="blue"
+        onPress={async () => {
+          let initCode = "";
+          let nonce = 0;
+          const accountAbi = parseAbi([
+            "function nonce() public view returns (uint256)",
+            "function execute(address target, uint256 value, bytes calldata data) external",
+          ]);
+
+          const bytecode = await client.getBytecode({
+            address: address as `0x${string}`,
+          });
+
+          if (bytecode === undefined) {
+            initCode = encodePacked(
+              ["address", "bytes"],
+              [FACTORY_CONTRACT, publicKey as `0x${string}`]
+            );
+          } else {
+            const accountNonce = await client.readContract({
+              address: address as `0x${string}`,
+              abi: accountAbi,
+              functionName: "nonce",
+            });
+            nonce = Number(accountNonce);
+          }
+
+          const gasPrice = await client.getGasPrice();
+          const maxPriorityFeePerGas = Number(parseGwei("10"));
+          const maxFeePerGas = Number(gasPrice) + maxPriorityFeePerGas;
+
+          const callData = encodeFunctionData({
+            abi: accountAbi,
+            functionName: "execute",
+            args: [
+              recipient as `0x${string}`,
+              parseEther(value as `${number}`),
+              "" as `0x${string}`,
+            ],
+          });
+
+          const userOp = {
+            sender: address,
+            nonce,
+            initCode,
+            callData,
+            callGasLimit: 1000000,
+            verificationGasLimit: 1000000,
+            preVerificationGas: 1000000,
+            maxFeePerGas,
+            maxPriorityFeePerGas,
+            paymasterAndData: "0x",
+            signature: "",
+          };
+
+          const userOpHash = (await client.readContract({
+            address: ENTRYPOINT_CONTRACT as `0x${string}`,
+            abi: ENTRYPOINT_ABI,
+            functionName: "getUserOpHash",
+            args: [userOp],
+          })) as `0x${string}`;
+
+          const signature = await ExpoHardwareEcdsa.sign(keyName, userOpHash);
+
+          console.log(signature.length);
+
+          userOp.signature = signature;
+
+          const rpcCall = {
+            jsonrpc: "2.0",
+            id: 1,
+            method: "eth_sendUserOperation",
+            params: [userOp, ENTRYPOINT_CONTRACT],
+          };
+
+          const stringifiedRpcCall = JSON.stringify(rpcCall);
+
+          const response = await fetch("http://localhost:4337", {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+            body: stringifiedRpcCall,
+          });
+
+          const result = await response.json();
+
+          console.log(result);
+        }}
+      >
         Transfer
       </Button>
     </YStack>
@@ -198,15 +386,6 @@ export default function App() {
             theme="blue"
             onPress={() => {
               writeAccountsToStorage([...accounts, generateSlug()]);
-              const data =
-                "0x791cb696b21a4c9d467bcc78ce053cd033b6d74fe268f179415d9731f370a653";
-              console.log("data", data);
-
-              ExpoHardwareEcdsa.getPublicKey("testing").then(console.log);
-              ExpoHardwareEcdsa.sign(
-                "testing",
-                keccak256(toHex("hello world"))
-              ).then(console.log);
             }}
           >
             New Wallet
