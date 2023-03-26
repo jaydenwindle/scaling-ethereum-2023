@@ -14,7 +14,7 @@ Since on-chain solidity-based P256 signature verification can be very gas-intens
 
 Combined together, Pixel Wallet and Pixel Rollup can help scale Ethereum by putting a gas-efficient, hardware-secured, and user friendly Ethereum wallet in every pocket.
 
-Pixel was built during the Scaling Ethereum 2023 Hackathon by @jaydenwindle and @hwrdtm.
+Pixel was built during the Scaling Ethereum 2023 Hackathon by [@jaydenwindle](https://github.com/jaydenwindle) and [@hwrdtm](https://github.com/hwrdtm).
 
 ## Technical Details
 
