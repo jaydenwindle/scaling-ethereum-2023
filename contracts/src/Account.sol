@@ -58,6 +58,25 @@ contract Account is Initializable, BaseAccount {
         }
     }
 
+    function isSigValid(UserOperation calldata userOp, bytes32 userOpHash)
+        public
+        returns (
+            uint256 validationData,
+            bytes memory callData,
+            bool success,
+            bool valid
+        )
+    {
+        callData = abi.encodePacked(userOp.signature, publicKey, userOpHash);
+        (bool success, bytes memory data) = verifier.staticcall(callData);
+
+        bool valid = abi.decode(data, (bool));
+
+        if (!valid) return (SIG_VALIDATION_FAILED, callData, success, valid);
+
+        return (0, callData, success, valid);
+    }
+
     function _validateSignature(
         UserOperation calldata userOp,
         bytes32 userOpHash
@@ -68,7 +87,7 @@ contract Account is Initializable, BaseAccount {
 
         bool valid = abi.decode(data, (bool));
 
-        if (!success || !valid) return SIG_VALIDATION_FAILED;
+        if (!valid) return SIG_VALIDATION_FAILED;
 
         return 0;
     }

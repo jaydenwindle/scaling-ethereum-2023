@@ -78,8 +78,9 @@ import ExpoHardwareEcdsaModule from "expo-hardware-ecdsa/ExpoHardwareEcdsaModule
 // });
 
 // OP R1
-const FACTORY_CONTRACT = "0xcab8817c0B0769A6de34679fCCd34Dd648Dd7311";
-const ENTRYPOINT_CONTRACT = "0x4299b09BFBeAdD466c66a6188eC7D13E13Fa5AD2";
+const CHAIN_ID = 42069;
+const FACTORY_CONTRACT = "0xdAdEFB407Fa99A08C1728e5d7BaA7a11341262D3";
+const ENTRYPOINT_CONTRACT = "0xE9B9924982e8935B65cBEf09D7319739be35a8A7";
 const VERIFIER_CONTRACT = "0x0000000000000000000000000000000000000100";
 
 const client = createPublicClient({
@@ -203,7 +204,7 @@ function AccountSheet({
         size="$5"
         theme="blue"
         onPress={async () => {
-          let initCode = "";
+          let initCode = "0x";
           let nonce = 0;
           const bytecode = await client.getBytecode({
             address: address as `0x${string}`,
@@ -277,7 +278,11 @@ function AccountSheet({
             args: [userOp],
           })) as `0x${string}`;
 
-          const userOpHash = getUserOpHash(userOp, ENTRYPOINT_CONTRACT, 5);
+          const userOpHash = getUserOpHash(
+            userOp,
+            ENTRYPOINT_CONTRACT,
+            CHAIN_ID
+          );
 
           console.log("here", userOpHash, userOpHashContract);
 
@@ -300,6 +305,17 @@ function AccountSheet({
           });
 
           console.log(data);
+
+          // const sigValid = await client.readContract({
+          //   address: address as `0x${string}`,
+          //   abi: Account.abi,
+          //   functionName: "isSigValid",
+          //   args: [userOp, userOpHash],
+          // });
+          //
+          // console.log(sigValid);
+          //
+          // return;
 
           try {
             (await client.readContract({

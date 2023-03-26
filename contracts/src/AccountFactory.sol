@@ -8,21 +8,16 @@ import "./Account.sol";
 import "./P256Verifier.sol";
 
 contract AccountFactory {
-    address public implementation;
-    address public entryPoint;
-    address public verifier;
+    address public immutable implementation;
+    address public immutable entryPoint;
+    address public immutable verifier;
 
     constructor(address _entryPoint) {
         entryPoint = _entryPoint;
 
         implementation = address(new Account());
 
-        if (block.chainid == 42069) {
-            // use precompile if available
-            verifier = address(0x100);
-        } else {
-            verifier = address(new P256Verifier());
-        }
+        verifier = address(new P256Verifier());
     }
 
     function create(bytes calldata publicKey) external returns (address) {
@@ -36,8 +31,18 @@ contract AccountFactory {
                 implementation,
                 keccak256(publicKey)
             );
+            address _verifier;
 
-            Account(account).initialize(publicKey, entryPoint, verifier);
+            if (block.chainid == 42069) {
+                // use precompile if available
+                Account(account).initialize(
+                    publicKey,
+                    entryPoint,
+                    address(0x100)
+                );
+            } else {
+                Account(account).initialize(publicKey, entryPoint, verifier);
+            }
         }
 
         return account;
