@@ -1,6 +1,6 @@
 # Pixel Wallet
 
-![](cover.png)
+![](cover1.png)
 
 ## About
 
