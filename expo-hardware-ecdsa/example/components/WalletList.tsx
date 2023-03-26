@@ -153,7 +153,9 @@ function AccountListItem({
               {address.slice(0, 6)}...{address.slice(-4)}
             </Paragraph>
           </YStack>
-          <Paragraph fontSize="$7">{balance} ETH</Paragraph>
+          <Paragraph fontSize="$7">
+            {Number(parseFloat(balance).toFixed(4))} ETH
+          </Paragraph>
         </XStack>
       </YStack>
     </TouchableOpacity>
@@ -347,6 +349,12 @@ function AccountSheet({
           });
           const result = await response.json();
           console.log(result);
+
+          Burnt.toast({
+            title: "Operation Submitted!",
+          });
+
+          onPress();
         }}
       >
         Transfer
