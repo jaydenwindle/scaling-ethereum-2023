@@ -28,6 +28,7 @@ import {
 } from "viem";
 import { foundry, goerli, hardhat, localhost } from "viem/chains";
 import axios from "axios";
+import * as DropdownMenu from "zeego/dropdown-menu";
 
 import EntryPoint from "../EntryPoint.json";
 import Account from "../Account.json";
@@ -35,7 +36,7 @@ import AccountFactory from "../AccountFactory.json";
 
 import { useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { PlusCircle, Send, X } from "@tamagui/lucide-icons";
+import { PlusCircle, Send, X, ChevronDown } from "@tamagui/lucide-icons";
 import { generateSlug } from "random-word-slugs";
 import * as Burnt from "burnt";
 import * as Clipboard from "expo-clipboard";
@@ -55,10 +56,83 @@ import {
 } from "tamagui";
 import ExpoHardwareEcdsaModule from "expo-hardware-ecdsa/ExpoHardwareEcdsaModule";
 
+const CHAIN_DATA = {
+  5: {
+    CHAIN_NAME: "Goerli",
+    FACTORY_CONTRACT: "0x58675fDe870aC281F510913Ea7616b384007b6d6",
+    ENTRYPOINT_CONTRACT: "0x0576a174D229E3cFA37253523E645A78A0C91B57",
+    VERIFIER_CONTRACT: "0x5eea9C2527B5864BaDC050FcB1771c78240Acd4E",
+    BUNDLER_URL: "https://api.blocknative.com/v1/goerli/bundler",
+    client: createPublicClient({
+      chain: goerli,
+      transport: http(
+        "https://eth-goerli.g.alchemy.com/v2/TJqDABiMUtSB8UgZosMt8u4CwN7Dca3Z"
+      ),
+    }),
+  },
+  42069: {
+    CHAIN_NAME: "Pixel",
+    FACTORY_CONTRACT: "0x58675fDe870aC281F510913Ea7616b384007b6d6",
+    ENTRYPOINT_CONTRACT: "0x8943AAAE85a913B70AD5Ab0042f9FEAcadcd7c75",
+    VERIFIER_CONTRACT: "0x0000000000000000000000000000000000000100",
+    BUNDLER_URL: "http://localhost:4337",
+    client: createPublicClient({
+      chain: {
+        ...localhost,
+        id: 42069,
+      },
+      transport: http("http://137.220.41.117:8545"),
+    }),
+  },
+  534352: {
+    CHAIN_NAME: "Scroll",
+    FACTORY_CONTRACT: "0x58675fDe870aC281F510913Ea7616b384007b6d6",
+    ENTRYPOINT_CONTRACT: "0x8943AAAE85a913B70AD5Ab0042f9FEAcadcd7c75",
+    VERIFIER_CONTRACT: "0x5eea9C2527B5864BaDC050FcB1771c78240Acd4E",
+    BUNDLER_URL: "http://localhost:4337",
+    client: createPublicClient({
+      chain: {
+        ...localhost,
+        id: 534352,
+      },
+      transport: http("https://alpha-rpc.scroll.io/l2"),
+    }),
+  },
+  100: {
+    CHAIN_NAME: "Gnosis Chain",
+    FACTORY_CONTRACT: "0x58675fDe870aC281F510913Ea7616b384007b6d6",
+    ENTRYPOINT_CONTRACT: "0x8943AAAE85a913B70AD5Ab0042f9FEAcadcd7c75",
+    VERIFIER_CONTRACT: "0x5eea9C2527B5864BaDC050FcB1771c78240Acd4E",
+    BUNDLER_URL: "http://localhost:4337",
+    client: createPublicClient({
+      chain: {
+        ...localhost,
+        id: 100,
+      },
+      transport: http("https://rpc.gnosischain.com"),
+    }),
+  },
+  1442: {
+    CHAIN_NAME: "Polygon ZK EVM",
+    FACTORY_CONTRACT: "0x58675fDe870aC281F510913Ea7616b384007b6d6",
+    ENTRYPOINT_CONTRACT: "0x8943AAAE85a913B70AD5Ab0042f9FEAcadcd7c75",
+    VERIFIER_CONTRACT: "0x5eea9C2527B5864BaDC050FcB1771c78240Acd4E",
+    BUNDLER_URL: "http://localhost:4337",
+    client: createPublicClient({
+      chain: {
+        ...localhost,
+        id: 1442,
+      },
+      transport: http("https://rpc.public.zkevm-test.net"),
+    }),
+  },
+};
+
 // goreli
-// const FACTORY_CONTRACT = "0xcea50e40Db753b8C12fa94256e878B7997a91c1F";
+// const CHAIN_ID = 5;
+// const FACTORY_CONTRACT = "0xcab8817c0B0769A6de34679fCCd34Dd648Dd7311";
 // const ENTRYPOINT_CONTRACT = "0x0576a174D229E3cFA37253523E645A78A0C91B57";
-// const VERIFIER_CONTRACT = "0x36f58b5164b151Be83723210342fF62c7Ea6BC35";
+// const VERIFIER_CONTRACT = "0x2eeEDF7e075A469707ef143B2085779e5edACc53";
 //
 // const client = createPublicClient({
 //   chain: goerli,
@@ -78,20 +152,21 @@ import ExpoHardwareEcdsaModule from "expo-hardware-ecdsa/ExpoHardwareEcdsaModule
 // });
 
 // OP R1
-const CHAIN_ID = 42069;
-const FACTORY_CONTRACT = "0xdAdEFB407Fa99A08C1728e5d7BaA7a11341262D3";
-const ENTRYPOINT_CONTRACT = "0xE9B9924982e8935B65cBEf09D7319739be35a8A7";
-const VERIFIER_CONTRACT = "0x0000000000000000000000000000000000000100";
+// const CHAIN_ID = 42069;
+// const FACTORY_CONTRACT = "0xdAdEFB407Fa99A08C1728e5d7BaA7a11341262D3";
+// const ENTRYPOINT_CONTRACT = "0xE9B9924982e8935B65cBEf09D7319739be35a8A7";
+// const VERIFIER_CONTRACT = "0x0000000000000000000000000000000000000100";
+//
+// const client = createPublicClient({
+//   chain: {
+//     ...localhost,
+//     id: 42069,
+//   },
+//   transport: http("http://137.220.41.117:8545"),
+// });
 
-const client = createPublicClient({
-  chain: {
-    ...localhost,
-    id: 42069,
-  },
-  transport: http("http://137.220.41.117:8545"),
-});
-
-const useWalletData = (keyName: string) => {
+const useWalletData = (keyName: string, chain: number) => {
+  const chainData = CHAIN_DATA[chain] as any;
   const [publicKey, setPublicKey] = useState("");
   const [address, setAddress] = useState("");
   const [balance, setBalance] = useState("");
@@ -105,8 +180,8 @@ const useWalletData = (keyName: string) => {
         "function predict(bytes calldata publicKey) external view returns (address)",
       ]);
 
-      const remoteAddress = await client.readContract({
-        address: FACTORY_CONTRACT,
+      const remoteAddress = await chainData.client.readContract({
+        address: chainData.FACTORY_CONTRACT,
         abi: abi,
         functionName: "predict",
         args: [pk as `0x${string}`],
@@ -114,7 +189,7 @@ const useWalletData = (keyName: string) => {
 
       setAddress(remoteAddress);
 
-      const remoteBalance = await client.getBalance({
+      const remoteBalance = await chainData.client.getBalance({
         address: remoteAddress,
       });
 
@@ -122,19 +197,21 @@ const useWalletData = (keyName: string) => {
     }
 
     getWalletData();
-  }, [keyName]);
+  }, [keyName, chain]);
 
   return { publicKey, address, balance };
 };
 
 function AccountListItem({
   keyName,
+  chain,
   onPress,
 }: {
   keyName: string;
+  chain: number;
   onPress: () => void;
 }) {
-  const { publicKey, address, balance } = useWalletData(keyName);
+  const { publicKey, address, balance } = useWalletData(keyName, chain);
 
   return (
     <TouchableOpacity
@@ -164,12 +241,14 @@ function AccountListItem({
 
 function AccountSheet({
   keyName,
+  chain,
   onPress,
 }: {
   keyName: string;
+  chain: number;
   onPress: () => void;
 }) {
-  const { publicKey, address, balance } = useWalletData(keyName);
+  const { publicKey, address, balance } = useWalletData(keyName, chain);
   const [recipient, setRecipient] = useState("");
   const [value, setValue] = useState("");
 
@@ -206,9 +285,10 @@ function AccountSheet({
         size="$5"
         theme="blue"
         onPress={async () => {
+          const chainData = CHAIN_DATA[chain] as any;
           let initCode = "0x";
           let nonce = 0;
-          const bytecode = await client.getBytecode({
+          const bytecode = await chainData.client.getBytecode({
             address: address as `0x${string}`,
           });
           const initCodeCalldata = encodeFunctionData({
@@ -217,12 +297,10 @@ function AccountSheet({
             args: [publicKey as `0x${string}`],
           });
 
-          const account = getAccount(
-            "0x1e9830Cd7c1b945c7640a1d7383616Cc2A194527"
-          );
+          const account = getAccount(chainData.ENTRYPOINT_CONTRACT);
 
-          const creationGasCost = await client.estimateContractGas({
-            address: FACTORY_CONTRACT,
+          const creationGasCost = await chainData.client.estimateContractGas({
+            address: chainData.FACTORY_CONTRACT,
             abi: AccountFactory.abi,
             functionName: "create",
             args: [publicKey as `0x${string}`],
@@ -234,10 +312,10 @@ function AccountSheet({
           if (bytecode === undefined) {
             initCode = encodePacked(
               ["address", "bytes"],
-              [FACTORY_CONTRACT, initCodeCalldata]
+              [chainData.FACTORY_CONTRACT, initCodeCalldata]
             );
           } else {
-            const accountNonce = await client.readContract({
+            const accountNonce = await chainData.client.readContract({
               address: address as `0x${string}`,
               abi: Account.abi,
               functionName: "nonce",
@@ -245,7 +323,7 @@ function AccountSheet({
             nonce = Number(accountNonce);
           }
 
-          const gasPrice = await client.getGasPrice();
+          const gasPrice = await chainData.client.getGasPrice();
           const maxPriorityFeePerGas = Number(parseGwei("1"));
           const maxFeePerGas = Number(gasPrice) + maxPriorityFeePerGas;
 
@@ -265,7 +343,7 @@ function AccountSheet({
             initCode,
             callData,
             callGasLimit: 50000,
-            verificationGasLimit: 300000,
+            verificationGasLimit: 1500000,
             preVerificationGas: 50000,
             maxFeePerGas,
             maxPriorityFeePerGas,
@@ -273,8 +351,8 @@ function AccountSheet({
             signature: "0x",
           };
 
-          const userOpHashContract = (await client.readContract({
-            address: ENTRYPOINT_CONTRACT as `0x${string}`,
+          const userOpHashContract = (await chainData.client.readContract({
+            address: chainData.ENTRYPOINT_CONTRACT as `0x${string}`,
             abi: EntryPoint.abi,
             functionName: "getUserOpHash",
             args: [userOp],
@@ -282,8 +360,8 @@ function AccountSheet({
 
           const userOpHash = getUserOpHash(
             userOp,
-            ENTRYPOINT_CONTRACT,
-            CHAIN_ID
+            chainData.ENTRYPOINT_CONTRACT,
+            chain
           );
 
           console.log("here", userOpHash, userOpHashContract);
@@ -296,7 +374,7 @@ function AccountSheet({
 
           console.log(signature, publicKey, userOpHash);
 
-          const data = await client.call({
+          const data = await chainData.client.call({
             account,
             data: concat([
               signature,
@@ -320,8 +398,8 @@ function AccountSheet({
           // return;
 
           try {
-            (await client.readContract({
-              address: ENTRYPOINT_CONTRACT as `0x${string}`,
+            (await chainData.client.readContract({
+              address: chainData.ENTRYPOINT_CONTRACT as `0x${string}`,
               abi: EntryPoint.abi,
               functionName: "simulateValidation",
               args: [userOp],
@@ -334,12 +412,12 @@ function AccountSheet({
             jsonrpc: "2.0",
             id: 1,
             method: "eth_sendUserOperation",
-            params: [userOp, ENTRYPOINT_CONTRACT],
+            params: [userOp, chainData.ENTRYPOINT_CONTRACT],
           };
 
           const stringifiedRpcCall = JSON.stringify(rpcCall);
 
-          const response = await fetch("http://localhost:4337", {
+          const response = await fetch(chainData.BUNDLER_URL, {
             method: "POST",
             headers: {
               Accept: "application/json",
@@ -366,6 +444,7 @@ function AccountSheet({
 export default function App() {
   const [accounts, setAccounts] = useState<Array<string>>([]);
   const [selectedAccount, setSelectedAccount] = useState<string>();
+  const [chain, setChain] = useState(5);
 
   const { getItem, setItem, removeItem } = useAsyncStorage("@accounts");
 
@@ -387,14 +466,58 @@ export default function App() {
     <SafeAreaView style={{ flex: 1 }}>
       <YStack flex={1}>
         <YStack flex={1}>
-          <H2 px="$4" my="$3" fontFamily="InterBold">
-            My Wallets
-          </H2>
+          <XStack px="$4" my="$3" ai="center">
+            <H2 fontFamily="InterBold">My Wallets</H2>
+            <XStack flex={1} justifyContent="flex-end">
+              <DropdownMenu.Root style={{ marginLeft: 10 }}>
+                <DropdownMenu.Trigger>
+                  <XStack>
+                    <Paragraph>{CHAIN_DATA[chain].CHAIN_NAME}</Paragraph>
+                    <ChevronDown />
+                  </XStack>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content>
+                  <DropdownMenu.Item key="goerli" onSelect={() => setChain(5)}>
+                    <DropdownMenu.ItemTitle>Goerli</DropdownMenu.ItemTitle>
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    key="pixel"
+                    onSelect={() => setChain(42069)}
+                  >
+                    <DropdownMenu.ItemTitle>Pixel</DropdownMenu.ItemTitle>
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    key="scroll"
+                    onSelect={() => setChain(534352)}
+                  >
+                    <DropdownMenu.ItemTitle>Scroll</DropdownMenu.ItemTitle>
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    key="Gnosis Chain"
+                    onSelect={() => setChain(100)}
+                  >
+                    <DropdownMenu.ItemTitle>
+                      Gnosis Chain
+                    </DropdownMenu.ItemTitle>
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    key="Polygon ZK EVM"
+                    onSelect={() => setChain(1442)}
+                  >
+                    <DropdownMenu.ItemTitle>
+                      Polygon ZK EVM
+                    </DropdownMenu.ItemTitle>
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Root>
+            </XStack>
+          </XStack>
           <FlatList
             data={accounts}
             renderItem={({ item }) => (
               <AccountListItem
                 keyName={item}
+                chain={chain}
                 onPress={() => setSelectedAccount(item)}
               />
             )}
@@ -424,6 +547,7 @@ export default function App() {
       >
         <AccountSheet
           keyName={selectedAccount || ""}
+          chain={chain}
           onPress={() => setSelectedAccount(undefined)}
         />
       </Modal>
