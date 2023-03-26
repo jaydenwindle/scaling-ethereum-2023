@@ -1,4 +1,4 @@
-# Pixel
+# Pixel Wallet
 
 ![](cover.png)
 
